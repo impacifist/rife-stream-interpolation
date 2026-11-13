@@ -16,11 +16,13 @@ RIFE v4.26+ IFNet 계열 모델로 비디오를 스트리밍 보간하는 ComfyU
    - `bf16`: BF16 weights/activations. 선택한 장치가 ComfyUI에서 BF16을 지원해야 합니다.
    - `fp32_tf32`: FP32 모델이며 CUDA cuDNN/cuBLAS의 TF32 연산 허용. TF32 Tensor Core 경로를 사용해 FP32보다 빠를 수 있으며, 엄격한 IEEE FP32와 수치 특성이 다릅니다.
    - `fp32_strict`: TF32 비활성 FP32 연산입니다.
-2. **RIFE Frame Interpolation (IMAGE In/Out)** 노드는 기존 ComfyUI `FrameInterpolate`와 같은 `interp_model`, `images`, `multiplier` 입력 및 `IMAGE` 출력 소켓을 제공합니다. 기존 워크플로에서 해당 노드로 교체한 뒤 같은 연결을 이어 사용하세요.
+2. **RIFE Frame Interpolation (IMAGE In/Out)** 노드는 모델과 프레임 배치를 입력받고, multiplier 위젯으로 배수를 정해 IMAGE 배치를 출력합니다.
 3. 입력 비디오 경로를 직접 스트리밍하려면 **RIFE Stream Frame Interpolation** 노드에 모델을 연결하고 `video_path`에 전체 경로를 넣습니다.
 4. 스트리밍 노드의 `pair_batch_size` 기본값은 4입니다. 인접한 프레임 쌍을 GPU 배치 처리하며 VRAM OOM 시 자동으로 배치를 줄여 재시도합니다. 결과 MP4는 ComfyUI의 `output` 폴더에 저장됩니다.
 
 IMAGE 호환 노드는 기존 IMAGE 배치 인터페이스를 유지합니다. CPU intermediate 출력은 disk-backed 텐서를 사용하고, 추론 시 작은 프레임 그룹만 장치로 옮깁니다. 입력 프레임은 이미 메모리에 있어야 하고 후속 노드가 출력을 메모리로 올릴 수 있으므로, 긴 고해상도 영상은 경로 기반 스트리밍 노드를 권장합니다.
+
+배수를 별도 수학 노드에서 계산하려면 수학 노드의 **INT 출력**을 `multiplier_input` 소켓에 연결하세요. 연결되어 있으면 이 입력이 multiplier 위젯보다 우선하고, 연결하지 않으면 위젯 값을 사용합니다. 허용 배수 범위는 2–16입니다. 소스 FPS·타겟 FPS 계산은 보간 노드와 분리된 수학 노드에서 구성할 수 있습니다.
 
 CUDA 경로에서는 channels-last 가중치/프레임 레이아웃과 cuDNN 고정 해상도 autotune을 사용합니다. `fp32_tf32`에서만 matmul/cuDNN TF32 허용을 켜며 노드 종료 후 matmul 설정을 복원합니다. BF16은 ComfyUI가 선택한 장치에서 지원 여부를 확인하며, 지원되지 않으면 실행을 중단합니다. FP32는 더 많은 VRAM을 사용할 수 있습니다. 모델 로드와 활성화 메모리는 ComfyUI의 모델 관리자를 사용하므로, ComfyUI의 GPU 선택·VRAM 정책을 따릅니다.
 

@@ -10,6 +10,7 @@ A ComfyUI custom node set for RIFE v4.26+ that includes both an `IMAGE`-compatib
 - FFmpeg-based frame streaming with H.264 output and optional AAC audio passthrough/transcoding.
 - ComfyUI model patcher and memory manager integration.
 - An IMAGE-in/IMAGE-out node with the same `interp_model`, `images`, and `multiplier` sockets as ComfyUI's built-in `FrameInterpolate`.
+- Optional `multiplier_input` INT socket for a value calculated by a separate math node.
 
 ## Install
 
@@ -26,3 +27,5 @@ The custom nodes depend on ComfyUI's `comfy_extras.frame_interpolation_models.if
 The `pair_batch_size` widget defaults to 4. Increase it to raise GPU utilization if VRAM permits, or lower it for high-resolution inputs. Actual throughput and TF32 behavior depend on the GPU, drivers, PyTorch build, and ComfyUI configuration.
 
 For existing IMAGE-batch workflows, search for **RIFE Frame Interpolation (IMAGE In/Out)** and replace the built-in node while reconnecting the same model, frame-batch, and multiplier links. It returns an IMAGE batch; CPU intermediate output is disk-backed although the input batch still occupies memory. Use **RIFE Stream Frame Interpolation** for the lowest RAM footprint with long videos.
+
+To supply a multiplier from a separate math node, connect its `INT` output to the optional `multiplier_input` socket. When connected, that value overrides the multiplier widget; otherwise the widget is used. The valid multiplier range is 2–16.
