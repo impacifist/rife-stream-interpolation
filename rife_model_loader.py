@@ -19,7 +19,10 @@ class RIFEModelLoader:
         return {
             "required": {
                 "model_name": (folder_paths.get_filename_list("frame_interpolation"),),
-                "precision": (["bf16", "fp32_tf32", "fp32_strict"], {"default": "bf16"}),
+                "precision": (
+                    ["fp16", "bf16", "fp32_tf32", "fp32_strict"],
+                    {"default": "fp16"},
+                ),
             }
         }
 
@@ -62,11 +65,18 @@ class RIFEModelLoader:
         model.load_state_dict(state_dict)
 
         device = model_management.get_torch_device()
-        if precision not in {"bf16", "fp32_tf32", "fp32_strict"}:
+        if precision not in {"fp16", "bf16", "fp32_tf32", "fp32_strict"}:
             raise ValueError(f"Unsupported RIFE precision: {precision}")
-        dtype = torch.bfloat16 if precision == "bf16" else torch.float32
+        if precision == "fp16" and not model_management.should_use_fp16(device):
+            raise RuntimeError(f"FP16 is not supported on the selected ComfyUI device: {device}")
         if precision == "bf16" and not model_management.should_use_bf16(device):
             raise RuntimeError(f"BF16 is not supported on the selected ComfyUI device: {device}")
+        if precision == "fp16":
+            dtype = torch.float16
+        elif precision == "bf16":
+            dtype = torch.bfloat16
+        else:
+            dtype = torch.float32
 
         model.eval().to(dtype=dtype)
         if device.type == "cuda":
@@ -82,4 +92,4 @@ class RIFEModelLoader:
 
 
 NODE_CLASS_MAPPINGS = {"RIFEModelLoader": RIFEModelLoader}
-NODE_DISPLAY_NAME_MAPPINGS = {"RIFEModelLoader": "Load RIFE v4.26+ (BF16 / TF32 / FP32)"}
+NODE_DISPLAY_NAME_MAPPINGS = {"RIFEModelLoader": "Load RIFE v4.26+ (FP16 / BF16 / FP32)"}

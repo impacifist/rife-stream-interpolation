@@ -75,9 +75,7 @@ def _allocate_images(
 
 
 class RIFEFrameInterpolate:
-    """Drop-in IMAGE interface for ComfyUI's FrameInterpolate node."""
-
-    _INITIAL_PAIR_BATCH = 4
+    """IMAGE-in/IMAGE-out RIFE interpolation with bounded pair chunks."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -97,6 +95,15 @@ class RIFEFrameInterpolate:
                         "tooltip": "Interpolation multiplier, matching the built-in FrameInterpolate node.",
                     },
                 ),
+                "chunk_size": (
+                    "INT",
+                    {
+                        "default": 4,
+                        "min": 1,
+                        "max": 16,
+                        "tooltip": "Adjacent frame pairs per inference chunk. Reduce to lower VRAM use.",
+                    },
+                ),
             },
         }
 
@@ -106,7 +113,13 @@ class RIFEFrameInterpolate:
     CATEGORY = "video"
 
     @classmethod
-    def interpolate(cls, interp_model, images: torch.Tensor, multiplier: int):
+    def interpolate(
+        cls,
+        interp_model,
+        images: torch.Tensor,
+        multiplier: int,
+        chunk_size: int = 4,
+    ):
         if images.ndim != 4 or images.shape[-1] != 3:
             raise ValueError("images must have ComfyUI IMAGE shape [frames, height, width, 3]")
         frame_count, height, width, _ = images.shape
@@ -114,6 +127,8 @@ class RIFEFrameInterpolate:
             return (images,)
         if not 2 <= multiplier <= 16:
             raise ValueError("Multiplier must be between 2 and 16")
+        if not 1 <= chunk_size <= 16:
+            raise ValueError("Chunk size must be between 1 and 16 frame pairs")
 
         total_pairs = frame_count - 1
         interpolants_per_pair = multiplier - 1
@@ -134,11 +149,9 @@ class RIFEFrameInterpolate:
         align = max(1, int(getattr(model, "pad_align", 1)))
         padded_height = ((height + align - 1) // align) * align
         padded_width = ((width + align - 1) // align) * align
-        pair_batch = min(cls._INITIAL_PAIR_BATCH, total_pairs)
-        required_memory = (
-            model.memory_used_forward((pair_batch, padded_height, padded_width, 3), dtype)
-            * pair_batch
-        )
+        pair_batch = min(chunk_size, total_pairs)
+        per_pair_memory = model.memory_used_forward((1, padded_height, padded_width, 3), dtype)
+        required_memory = per_pair_memory * pair_batch
         model_management.load_models_gpu([interp_model], memory_required=required_memory)
 
         timestep_values = [step / multiplier for step in range(1, multiplier)]
@@ -240,7 +253,7 @@ class RIFEFrameInterpolate:
                         pair_batch = max(1, pair_count // 2)
                         model_management.soft_empty_cache()
                         logger.warning(
-                            "RIFE IMAGE inference OOM; reducing pair batch size to %d",
+                            "RIFE IMAGE inference OOM; reducing chunk size to %d pairs",
                             pair_batch,
                         )
         finally:

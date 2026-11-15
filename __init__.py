@@ -6,7 +6,7 @@ NODE_CLASS_MAPPINGS = {
     "RIFEFrameInterpolate": RIFEFrameInterpolate,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "RIFEModelLoader": "Load RIFE v4.26+ (BF16 / TF32 / FP32)",
+    "RIFEModelLoader": "Load RIFE v4.26+ (FP16 / BF16 / FP32)",
     "RIFEFrameInterpolate": "RIFE Frame Interpolation",
 }
 

@@ -4,8 +4,8 @@ A two-node RIFE v4.26+ ComfyUI frame interpolation package: a model loader and a
 
 ## Nodes
 
-1. **Load RIFE v4.26+ (BF16 / TF32 / FP32)** loads a ComfyUI-compatible IFNet checkpoint from `ComfyUI/models/frame_interpolation` and returns `interp_model`.
-2. **RIFE Frame Interpolation** accepts that model, a video frame `IMAGE` batch, and a multiplier widget (2–16), then returns the interpolated `IMAGE` batch.
+1. **Load RIFE v4.26+ (FP16 / BF16 / FP32)** loads a compatible IFNet checkpoint and lets you choose FP16, BF16, TF32-enabled FP32, or strict FP32.
+2. **RIFE Frame Interpolation** accepts the model, a video frame `IMAGE` batch, a multiplier (2–16), and `chunk_size` (1–16 adjacent frame pairs), then returns the interpolated `IMAGE` batch.
 
 Connect the model loader's `interp_model` output to the interpolation node's `interp_model` input. Connect a video loader's IMAGE frame batch to `images`, set the `multiplier` widget, and pass the resulting IMAGE batch downstream.
 
@@ -15,8 +15,9 @@ Copy this repository directory into `ComfyUI/custom_nodes/rife_stream_interpolat
 
 ## Precision
 
+- `fp16`: FP16 weights and activations; requires device support.
 - `bf16`: BF16 weights and activations; requires device support.
 - `fp32_tf32`: FP32 tensors with CUDA TF32 allowed for cuDNN/cuBLAS operations.
 - `fp32_strict`: FP32 with TF32 disabled.
 
-The inference node uses adjacent frame-pair batches, CUDA channels-last layout, cuDNN autotuning, and reduces the pair batch after VRAM OOM. Actual throughput depends on the GPU, drivers, PyTorch, and ComfyUI configuration. Inputs and outputs follow ComfyUI's IMAGE-batch memory behavior.
+The `chunk_size` widget controls how many adjacent frame pairs are processed together. Smaller chunks lower peak VRAM use; larger chunks may improve throughput. CUDA inference uses channels-last and cuDNN autotuning; VRAM OOM reduces the pair chunk and retries. Actual performance depends on GPU, drivers, PyTorch, and ComfyUI configuration. Inputs and outputs retain IMAGE-batch memory behavior.
