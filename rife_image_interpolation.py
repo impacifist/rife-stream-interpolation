@@ -8,14 +8,27 @@ import tempfile
 import threading
 import time
 import weakref
+from contextlib import contextmanager
 
 import comfy.utils
 import torch
 from comfy import model_management
 
-from .rife_stream_interpolation import _fast_inference_backends
-
 logger = logging.getLogger("rife_stream_interpolation")
+
+
+@contextmanager
+def _fast_inference_backends(device: torch.device, allow_tf32: bool):
+    if device.type != "cuda":
+        yield
+        return
+    previous_matmul_tf32 = torch.backends.cuda.matmul.allow_tf32
+    torch.backends.cuda.matmul.allow_tf32 = allow_tf32
+    try:
+        with torch.backends.cudnn.flags(benchmark=True, allow_tf32=allow_tf32):
+            yield
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = previous_matmul_tf32
 
 
 def _remove_tensor_file(path: str) -> None:
@@ -74,15 +87,6 @@ class RIFEFrameInterpolate:
                 "images": ("IMAGE",),
                 "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
             },
-            "optional": {
-                "multiplier_input": (
-                    "INT",
-                    {
-                        "forceInput": True,
-                        "tooltip": "Connected INT overrides the multiplier widget.",
-                    },
-                ),
-            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -91,22 +95,14 @@ class RIFEFrameInterpolate:
     CATEGORY = "video"
 
     @classmethod
-    def interpolate(
-        cls,
-        interp_model,
-        images: torch.Tensor,
-        multiplier: int,
-        multiplier_input: int | None = None,
-    ):
-        effective_multiplier = multiplier if multiplier_input is None else multiplier_input
+    def interpolate(cls, interp_model, images: torch.Tensor, multiplier: int):
         if images.ndim != 4 or images.shape[-1] != 3:
             raise ValueError("images must have ComfyUI IMAGE shape [frames, height, width, 3]")
         frame_count, height, width, _ = images.shape
         if frame_count < 2:
             return (images,)
-        if not 2 <= effective_multiplier <= 16:
+        if not 2 <= multiplier <= 16:
             raise ValueError("Multiplier must be between 2 and 16")
-        multiplier = effective_multiplier
 
         total_pairs = frame_count - 1
         interpolants_per_pair = multiplier - 1
@@ -243,4 +239,4 @@ class RIFEFrameInterpolate:
 
 
 NODE_CLASS_MAPPINGS = {"RIFEFrameInterpolate": RIFEFrameInterpolate}
-NODE_DISPLAY_NAME_MAPPINGS = {"RIFEFrameInterpolate": "RIFE Frame Interpolation (IMAGE In/Out)"}
+NODE_DISPLAY_NAME_MAPPINGS = {"RIFEFrameInterpolate": "RIFE Frame Interpolation"}

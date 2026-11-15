@@ -1,22 +1,17 @@
-# RIFE Stream Frame Interpolation for ComfyUI
+# RIFE Frame Interpolation for ComfyUI
 
-A ComfyUI custom node set for RIFE v4.26+ that includes both an `IMAGE`-compatible replacement for ComfyUI's built-in frame interpolation node and a bounded-memory video-file streaming node.
+A two-node RIFE v4.26+ ComfyUI frame interpolation package: a model loader and an IMAGE-batch interpolation node with a multiplier widget, following the built-in `FrameInterpolate` workflow.
 
-## Features
+## Nodes
 
-- BF16, FP32 with TF32, and strict FP32 inference modes.
-- Adjacent-pair GPU batching, CUDA channels-last layout, and cuDNN autotuning.
-- Automatic reduction of the pair batch size after a VRAM OOM.
-- FFmpeg-based frame streaming with H.264 output and optional AAC audio passthrough/transcoding.
-- ComfyUI model patcher and memory manager integration.
-- An IMAGE-in/IMAGE-out node with the same `interp_model`, `images`, and `multiplier` sockets as ComfyUI's built-in `FrameInterpolate`.
-- Optional `multiplier_input` INT socket for a value calculated by a separate math node.
+1. **Load RIFE v4.26+ (BF16 / TF32 / FP32)** loads a ComfyUI-compatible IFNet checkpoint from `ComfyUI/models/frame_interpolation` and returns `interp_model`.
+2. **RIFE Frame Interpolation** accepts that model, a video frame `IMAGE` batch, and a multiplier widget (2–16), then returns the interpolated `IMAGE` batch.
+
+The interpolation node follows the built-in `FrameInterpolate` input/output contract. Calculate source/target FPS and the resulting multiplier in an external math node if needed, then set the multiplier widget. This package exposes only the model loader and frame interpolation nodes.
 
 ## Install
 
-Copy this repository directory into `ComfyUI/custom_nodes/rife_stream_interpolation`, place a ComfyUI-compatible RIFE v4.26+ checkpoint in `ComfyUI/models/frame_interpolation`, ensure `ffmpeg` and `ffprobe` are on PATH, and restart ComfyUI. See [README.ko.md](README.ko.md) for setup and usage in Korean.
-
-The custom nodes depend on ComfyUI's `comfy_extras.frame_interpolation_models.ifnet` implementation and are intended to be installed into a ComfyUI checkout. The checkpoint must match ComfyUI's five-block IFNet architecture.
+Copy this repository directory into `ComfyUI/custom_nodes/rife_stream_interpolation`, place a compatible RIFE v4.26+ checkpoint in `ComfyUI/models/frame_interpolation`, and restart ComfyUI. See [README.ko.md](README.ko.md) for Korean setup instructions.
 
 ## Precision
 
@@ -24,8 +19,4 @@ The custom nodes depend on ComfyUI's `comfy_extras.frame_interpolation_models.if
 - `fp32_tf32`: FP32 tensors with CUDA TF32 allowed for cuDNN/cuBLAS operations.
 - `fp32_strict`: FP32 with TF32 disabled.
 
-The `pair_batch_size` widget defaults to 4. Increase it to raise GPU utilization if VRAM permits, or lower it for high-resolution inputs. Actual throughput and TF32 behavior depend on the GPU, drivers, PyTorch build, and ComfyUI configuration.
-
-For existing IMAGE-batch workflows, search for **RIFE Frame Interpolation (IMAGE In/Out)** and replace the built-in node while reconnecting the same model, frame-batch, and multiplier links. It returns an IMAGE batch; CPU intermediate output is disk-backed although the input batch still occupies memory. Use **RIFE Stream Frame Interpolation** for the lowest RAM footprint with long videos.
-
-To supply a multiplier from a separate math node, connect its `INT` output to the optional `multiplier_input` socket. When connected, that value overrides the multiplier widget; otherwise the widget is used. The valid multiplier range is 2–16.
+The inference node uses adjacent frame-pair batches, CUDA channels-last layout, cuDNN autotuning, and reduces the pair batch after VRAM OOM. Actual throughput depends on the GPU, drivers, PyTorch, and ComfyUI configuration. Inputs and outputs follow ComfyUI's IMAGE-batch memory behavior.
