@@ -83,9 +83,20 @@ class RIFEFrameInterpolate:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "interp_model": ("INTERP_MODEL",),
-                "images": ("IMAGE",),
-                "multiplier": ("INT", {"default": 2, "min": 2, "max": 16}),
+                "interp_model": (
+                    "INTERP_MODEL",
+                    {"tooltip": "Connect the interp_model output from the RIFE model loader."},
+                ),
+                "images": ("IMAGE", {"tooltip": "Input video frames as an IMAGE batch."}),
+                "multiplier": (
+                    "INT",
+                    {
+                        "default": 2,
+                        "min": 2,
+                        "max": 16,
+                        "tooltip": "Interpolation multiplier, matching the built-in FrameInterpolate node.",
+                    },
+                ),
             },
         }
 

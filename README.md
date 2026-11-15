@@ -7,7 +7,7 @@ A two-node RIFE v4.26+ ComfyUI frame interpolation package: a model loader and a
 1. **Load RIFE v4.26+ (BF16 / TF32 / FP32)** loads a ComfyUI-compatible IFNet checkpoint from `ComfyUI/models/frame_interpolation` and returns `interp_model`.
 2. **RIFE Frame Interpolation** accepts that model, a video frame `IMAGE` batch, and a multiplier widget (2–16), then returns the interpolated `IMAGE` batch.
 
-The interpolation node follows the built-in `FrameInterpolate` input/output contract. Calculate source/target FPS and the resulting multiplier in an external math node if needed, then set the multiplier widget. This package exposes only the model loader and frame interpolation nodes.
+Connect the model loader's `interp_model` output to the interpolation node's `interp_model` input. Connect a video loader's IMAGE frame batch to `images`, set the `multiplier` widget, and pass the resulting IMAGE batch downstream.
 
 ## Install
 
